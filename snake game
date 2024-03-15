@@ -1,0 +1,388 @@
+using NEA_snake_game.Properties;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Drawing.Imaging;// add this for the JPG compressor
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Xml.Schema;
+
+
+namespace NEA_snake_game
+{
+    public partial class Form1 : Form
+    {
+
+
+        private List <circle> snake = new List <circle> ();
+        private circle food = new circle ();
+
+        int maxWidth;
+        int maxHeight;
+
+        int score;
+        int highscore;
+
+        Random rand = new Random ();
+
+        bool goLeft ,goRight ,goUp ,goDown ; //instantiated and set to false at first
+
+        public int highScore { get; private set; }
+
+        public Form1()
+        {
+            InitializeComponent();
+            // Add PictureBox and Timer components to the form
+
+            new settings();
+        }
+
+
+        private void InitializeGame()//NEW PART 
+        {
+            // Add code to initialize the game here
+            maxWidth = picCanvas.Width / settings.Width - 1;
+            maxHeight = picCanvas.Height / settings.Height - 1;
+            score = 0;
+            highscore = 0;
+
+            // Create the snake
+            circle head = new circle { x = 10, y = 5 };
+            snake.Add(head);
+
+            // Generate food
+            food = new circle { x = rand.Next(2, maxWidth), y = rand.Next(2, maxHeight) };
+
+            // Start the game timer
+            gameTimer.Start();
+        }
+
+
+        private void KeyisDown(object sender, KeyEventArgs e)
+           
+        {
+            
+            if (e.KeyCode== Keys.Left && settings.directions != "right") //if already going left it shouldnt go right 
+            {
+                goLeft = true;
+            }
+            if (e.KeyCode== Keys.Right && settings.directions != "left")
+            {
+                goRight = true;
+            }
+            if (e.KeyCode == Keys.Up && settings.directions != "down")
+            {
+                goUp = true;
+            }
+            if (e.KeyCode == Keys.Down && settings.directions != "up")
+            {
+                goDown = true;
+            }
+
+
+
+        }
+
+        private void KeyisUp(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Left)
+            {
+                goLeft = false;
+            }
+            if (e.KeyCode == Keys.Right)
+            {
+                goRight = false;
+            }
+            if (e.KeyCode == Keys.Up)
+            {
+                goUp = false;
+            }
+            if (e.KeyCode == Keys.Down)
+            {
+                goDown = false;
+            }
+        }
+
+        private void StartGame(object sender, EventArgs e)
+        {
+            RestartGame();
+
+        }
+
+        private void TakeSnapshot(object sender, EventArgs e)
+        {
+            Label caption = new Label();
+            caption.Text = "I scored: " + score + " and my Highscore is " + highScore + " on the Snake Game ";
+            caption.Font = new Font("Ariel", 12, FontStyle.Bold);
+            caption.ForeColor = Color.Purple;
+            caption.AutoSize = false;
+            caption.Width = picCanvas.Width;
+            caption.Height = 30;
+            caption.TextAlign = ContentAlignment.MiddleCenter;
+            picCanvas.Controls.Add(caption);
+
+            SaveFileDialog dialog = new SaveFileDialog();
+            dialog.FileName = "Snake Game SnapShot ";
+            dialog.DefaultExt = "jpg";
+            dialog.Filter = "JPG Image File | *.jpg";
+            dialog.ValidateNames = true;
+            if (dialog.ShowDialog() == DialogResult.OK)//define height and width of picture
+            {
+                int width = Convert.ToInt32(picCanvas.Width);
+                int height = Convert.ToInt32(picCanvas.Height);
+                Bitmap bmp = new Bitmap(width, height);//size of picture
+                picCanvas.DrawToBitmap(bmp, new Rectangle(0, 0, width, height));//anything inside will be into bitmap
+                bmp.Save(dialog.FileName, ImageFormat.Jpeg);
+                picCanvas.Controls.Remove(caption);
+            }
+        }
+
+
+        private void Ganetimerevent(object sender, EventArgs e)
+        {
+            //setting the directions
+
+            if (goLeft)
+            {
+                Settings.directions = "left";
+            }
+            if (goRight)
+            {
+                Settings.directions = "right";
+            }
+            if (goDown)
+            {
+                Settings.directions = "down";
+            }
+            if (goUp)
+            {
+                Settings.directions = "up";
+            }
+
+            for (int i = snake.Count-1; i >= 0; i--)
+            {
+                if (i == 0)//When it finds smake head this is the route itll take
+                {
+                    switch(settings.directions)
+                    {
+                        case"left"://minuses 1 from the position because it goes left 
+                            snake[i].x--;
+                            break;
+                        case "right"://add 1 to the position because its going right
+                            snake[i].x++;
+                            break;
+                        case "down":
+                            snake[i].y++;
+                            break;
+                        case "up":
+                            snake[i].y--;
+                            break;
+                    }
+
+                    //when snake reaches end of screen itll reappear on other side of screen/wall
+
+                    if (snake[i].x < 0)//following code from line 138-145 is if snake head goes left or right corners
+                    {
+                        snake[i].x = maxWidth;
+                    }
+                    if (snake[i].x > maxWidth)//reverses back to other side 
+                    {
+                        snake[i].x = 0;
+                    }
+                    //following code is to move snake head when it goes on the top or bottom side 
+                    if (snake[i].y < 0) 
+                    {
+                        snake[i].y = maxHeight;
+                    }
+                    if (snake[i].y > maxHeight)
+                    {
+                        snake[i].y = 0;
+                    }
+
+                    if (snake[i].x == food.x && snake[i].y==food.y)//x and y values are the same  for the food and snakes head 
+                    {
+                        EatFood();
+                    }
+                    //find out if any part of snakes head touched own body 
+                    for (int j = 1;j< snake.Count; j++)//snake head=i
+                    {
+                        if (snake[i].x == snake[j].x && snake[i].y== snake[j].y)
+                        {
+                            GameOver ();
+                        }
+                    }
+
+
+                }
+                else
+                {
+                    snake[i].x = snake[i-1].x;//one body part will follow the other body part in the list
+                    snake[i].y = snake[i - 1].y;
+                }
+
+            }
+
+            picCanvas.Invalidate();//each time it will clear and redraw on canvas 
+
+        }
+        private void MoveSnake()
+        {
+            // Add code to move the snake here
+            if (goLeft)
+            {
+                Settings.directions = "left";
+            }
+            if (goRight)
+            {
+                Settings.directions = "right";
+            }
+            if (goDown)
+            {
+                Settings.directions = "down";
+            }
+            if (goUp)
+            {
+                Settings.directions = "up";
+            }
+
+            for (int i = snake.Count - 1; i >= 0; i--)
+            {
+                if (i == 0)
+                {
+                    switch (Settings.directions)
+                    {
+                        case "left":
+                            snake[i].x--;
+                            break;
+                        case "right":
+                            snake[i].x++;
+                            break;
+                        case "down":
+                            snake[i].y++;
+                            break;
+                        case "up":
+                            snake[i].y--;
+                            break;
+                    }
+
+                    // Check if the snake eats the food
+                    if (snake[i].x == food.x && snake[i].y == food.y)
+                    {
+                        EatFood();
+                    }
+
+                    // Check if the snake hits the wall
+                    if (snake[i].x < 0 || snake[i].x > maxWidth || snake[i].y < 0 || snake[i].y > maxHeight)
+                    {
+                        GameOver();
+                    }
+                }
+                else
+                {
+                    snake[i].x = snake[i - 1].x;
+                    snake[i].y = snake[i - 1].y;
+                }
+            }
+        }
+
+        private void updatepictureboxgraphics(object sender, PaintEventArgs e)
+        {
+            Graphics canvas = e.Graphics;//link this paint event to this canvas 
+
+            Brush snakecColour;
+
+            for (int i = 0; i < snake.Count; i++)
+            {
+                if (i == 0)//access first index of this list 
+                {
+                    snakecColour = Brushes.Black;//CHOOSE BLACK COLOUR FOR SNAKES head
+                }
+                else
+                {
+                    snakecColour= Brushes.DarkGreen;
+                }
+
+                canvas.FillEllipse(snakecColour, new Rectangle
+                (
+                    snake[i].x * Settings.Width,
+                    snake[i].y *settings.Height ,
+                    settings.Width, settings.Height
+                ));
+            }
+               canvas.FillEllipse(Brushes.DarkRed, new Rectangle//food will be red 
+               (
+                   food.x * Settings.Width,
+                   food.y * settings.Height,
+                   settings.Width, settings.Height
+               ));
+        }
+
+
+
+        private void RestartGame()//want to have all these functions before the game starts 
+        {
+            maxWidth = picCanvas.Width /settings.Width -1;//padding for the snake so its not too close to edge 
+            maxHeight = picCanvas.Height / settings.Height - 1;
+
+            snake.Clear ();//starts game with new snake 
+
+            startButton.Enabled = false;//wont use the RLUD buttons because of this 
+            snapButton.Enabled = false;
+            score = 0;
+            txtscore.Text = "score:" + score ;
+            //creating body parts for snake 
+            circle head = new circle { x = 10, y = 5 };//snake will be in middle of screen
+            snake.Add (head);//adding to list
+
+            for (int i = 0; i <10; i++) //run this loop 10 times
+            {
+                circle body = new circle();
+                snake.Add(body);
+            }
+
+            food = new circle { x = rand.Next(2, maxWidth),y=rand.Next(2,maxHeight) };//food will be placed in random places within max height and width
+            gameTimer .Start ();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void EatFood()
+        {
+            score += 1;
+            txtscore.Text = "score:" + score;//updates it 
+            circle body = new circle //add body part for snake 
+            {
+                x = snake[snake.Count - 1].x,//add to last index on there 
+                y = snake[snake.Count - 1].y
+            };//adding new instance to the circle class
+
+            snake.Add(body ); //add body to the snake after it eats 
+            food = new circle { x = rand.Next(2, maxWidth), y = rand.Next(2, maxHeight) };//find random position to put that circle in
+        }
+
+        private void GameOver()
+        {
+            gameTimer.Stop();
+            startButton.Enabled = true;
+            snapButton.Enabled = true;
+
+            if (score > highScore)
+            {
+                highScore = score;
+                txtHighScore.Text = "High Score: " + Environment.NewLine + highScore;
+                txtHighScore.ForeColor = Color.Maroon;
+                txtHighScore.TextAlign = ContentAlignment.MiddleCenter;
+            }
+        }
+
+        private class startButton
+        {
+            public static bool Enabled { get; internal set; }
+        }
